@@ -1,56 +1,48 @@
-include .env
-
-.PHONY: build install bundle clean interact dev up test test-watch start start-test start-test-watch first stop restart clear test test-watch start-test start-test-watch
+.PHONY: build bundle clean dev first help install .PHONY restart shell start stop test test-watch up tsc-watch
 
 help:		## List all make commands
 	@awk 'BEGIN {FS = ":.*##"; printf "\n  Please use `make <target>` where <target> is one of:\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 	@echo ' '
 
-build:  # Build the project with -d and --no-recreate flags
-	$(DOCKER_COMPOSE) up --build --no-recreate -d
+build:
+	docker compose build
 
-install:  # Exec container and make npm install commands
-	$(DOCKER_EXEC_TOOLS_APP) -c $(NODE_INSTALL)
+bundle:		## Run npm build to bundle final
+	docker compose run --rm web rm -rf dist/
+	docker compose run --rm web npm run build
 
-create:  # Exec container and make npm install commands
-	$(DOCKER_EXEC_TOOLS_APP) -c $(NODE_CREATE)
+clean: stop	## Stop and remove containers and node_modules
+	docker compose down -v --remove-orphans
+	rm -rf node_modules
 
-bundle:  ## Run build npm command script
-	$(DOCKER_EXEC_TOOLS_APP) -c $(BUNDLE_RUN)
+dev:
+	docker compose run --rm web npm run dev -- --host
 
-clean:  ## Remove all dist/ files
-	$(DOCKER_EXEC_TOOLS_APP) -c $(CLEAN_RUN)
+tsc-watch:  ## Run typescript type-check in watch mode
+	docker compose run --rm web npm run type-check-watch
 
-interact:  ## Interact to install new packages or run specific commands in container
-	$(DOCKER_EXEC_TOOLS_APP)
+first: build install start  ## Build the env, up it and run the npm install and then run npm run dev it to
 
-test:  # Internal command to run dev npm command script
-	$(DOCKER_EXEC_TOOLS_APP) -c $(TEST_RUN)
+install:	## Run npm install
+	docker compose run --rm web npm install
 
-test-watch:  # Internal command to run dev npm command script
-	$(DOCKER_EXEC_TOOLS_APP) -c $(TEST_RUN_WATCH)
+shell:	## Interactive mode in web
+	docker compose run --rm web bash
 
-dev:  # Internal command to run dev npm command script
-	$(DOCKER_EXEC_TOOLS_APP) -c $(SERVER_RUN)
+restart: stop start ## Compose Kill, rm and start again
 
-up:  # Run up -d Docker command container will wait for interactions
-	$(DOCKER_COMPOSE) up -d
+start: up dev
 
-start:  up dev  ## Up the docker env and run the npm run dev
+stop:	## Compose kill and rm
+	docker compose kill
+	docker compose rm --force
 
-start-test:  up test  ## Up the docker env and run the npm run test:unit
+test:	## Run tests
+	docker compose run --rm web npm run test:unit
 
-start-test-watch:  up test-watch  ## Up the docker env and run the npm run test-watch:unit
+test-watch:	## Run tests in watch mode
+	docker compose run --rm web npm run test-watch:unit
 
-first:	build install dev  ## Build the env, up it and run the npm install and then run npm run dev it to
+up:
+	docker compose up --build --no-recreate -d
 
-create:	build create  ## Build the env, up it and run the npm install and then run npm run dev it to
-
-stop:	$(ROOT_DIR)/compose.yml  ## Stop and remove containers
-	$(DOCKER_COMPOSE) kill
-	$(DOCKER_COMPOSE) rm --force
-
-restart:  stop start dev  ## Stop and restart container
-
-clear:	stop $(ROOT_DIR)/compose.yml  ## Stop and remove container and orphans
-	$(DOCKER_COMPOSE) down -v --remove-orphans

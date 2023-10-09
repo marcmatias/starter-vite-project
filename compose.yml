@@ -1,17 +1,14 @@
 version: "3.4"
 
 services:
- vite_docker:
-   image: node:alpine
-   container_name: "${DOCKER_NAME}"
-   entrypoint: /bin/sh
-   env_file:
-     - .env
-   user: "${UID}:${GID}"
-   working_dir: /srv/app
-   volumes:
-     - type: bind
-       source: ./
-       target: /srv/app
-   tty: true
-   network_mode: host
+  web:
+    build: .
+    env_file:
+      - .env
+    user: "${UID}:${GID}"
+    working_dir: /srv/app
+    stdin_open: true  # `-i`
+    tty: true  # `-t`
+    volumes:
+       - ${PWD}:/srv/app
+    network_mode: host
